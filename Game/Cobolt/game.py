@@ -6,14 +6,23 @@ import os
 # настройка папки ассетов
 game_folder = os.path.dirname(__file__)
 img_folder = os.path.join(game_folder, 'img')
+sound_floder = os.path.join(game_folder,'sound')
 
+pygame.mixer.init()
+Chanel_1 = pygame.mixer.Channel(0)
 def select_img(x):
     return  pygame.image.load(os.path.join(img_folder, x))
+
+def select_sound(x):
+    return  pygame.mixer.Sound(os.path.join(sound_floder,x))
+
 
 icon = select_img('Tree.png')
 player_img = [select_img('P_down.png'),select_img('P_up.png'),select_img('P_right.png'),select_img('P_left.png')]
 tree_img = select_img('Tree.png')
-enemy_img = select_img('angry_cat.png')
+enemy_img = [select_img('cat.png'),select_img('cat_alert.png'),select_img('cat_angry.png')]
+
+alert_sound = select_sound('alert.mp3')
 
 # 1280x800
 # 1920x1080
@@ -61,6 +70,7 @@ class Obj(pygame.sprite.Sprite):
         self.rect.center = (x, y)
         # рамка выделяющая спрайт
         self.border = (0, 0, self.rect.width, self.rect.height)
+
         pygame.draw.rect(self.image, self.border_color, self.border, 3)
 
     def get_cord(self):
@@ -101,17 +111,33 @@ class Player(NPC):
         self.border = (0, 0, self.rect.width, self.rect.height)
         pygame.draw.rect(self.image, self.border_color, self.border, 2)
 
+
 class Enemy(NPC):
+    def __init__(self,x,y,img,hp,dmg):
+        self.catch = False
+        self.catch_timer = 0
+        super().__init__(x,y,img,hp,dmg)
     def update(self):
         #перемещение
         cord_dif_x = player_1.rect.x - self.rect.x
         cord_dif_y = player_1.rect.y - self.rect.y
 
 
-        #фокус с -  )
         if ( math.sqrt(cord_dif_x**2 + cord_dif_y**2) <= enemy_view):
-            self.rect.x += enemy_speed*sign(cord_dif_x)
-            self.rect.y += enemy_speed*sign(cord_dif_y)
+            if (self.catch==False):
+                self.catch_timer = pygame.time.get_ticks()
+                self.image = enemy_img[1]
+                self.catch = True
+                Chanel_1.play(alert_sound)
+            if pygame.time.get_ticks() > self.catch_timer + 300:
+                self.rect.x += enemy_speed*sign(cord_dif_x)
+                self.rect.y += enemy_speed*sign(cord_dif_y)
+                self.image = enemy_img[2]
+        else:
+            self.catch = False
+            self.image = enemy_img[0]
+
+
 
 
 pygame.init() #инициаллизация всех игровых объедков
@@ -123,12 +149,14 @@ clock = pygame.time.Clock()
 
 all_sprites = pygame.sprite.Group()
 enemy_sprites = pygame.sprite.Group()
+static_sprites = pygame.sprite.Group()
 
 player_1 = Player(WIDTH/2,HEIGHT/2,player_img[0],player_Hp,player_dmg) # создаём спрайт класса "игрок"
-enemy_1 = Enemy(WIDTH/2 + 100,HEIGHT/2 - 100,enemy_img,enemy_hp,enemy_dmg)
+enemy_1 = Enemy(WIDTH/2 + 400,HEIGHT/2 ,enemy_img[0],enemy_hp,enemy_dmg)
 tree_1 = Obj(WIDTH/2 - 300,HEIGHT/2,tree_img)
 
 enemy_sprites.add(enemy_1)
+static_sprites.add(tree_1)
 all_sprites.add(player_1,enemy_1,tree_1) # добавляем объект в спрайты
 
 
@@ -144,8 +172,9 @@ while run:
     # Ввод процесса (события)
 
     # Обновление всех спрайтов
+    # не забываем что внути udate прописаны event для управления
     all_sprites.update()
-    #pygame.sprite.spritecollideany(player_1,enemy_sprites)
+
     #обработка событий
     for event in pygame.event.get():
         # проверить закрытие окна
@@ -156,7 +185,7 @@ while run:
     screen.fill(map_color)
     all_sprites.draw(screen)
 
-    #
+
     pygame.draw.circle(screen, BLACK,enemy_1.rect.center, enemy_view,5)
     # Визуализация (сборка)
     pygame.display.flip() # отрисовка
