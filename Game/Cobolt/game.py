@@ -82,7 +82,7 @@ RPURPLE = (185,0,105)
 map_color = (65,66,1)
 
 #  главные параметры "настройки" - от них зависит сложность
-player_SPEED = 4
+player_SPEED = 5
 player_Dash_co = 3
 player_Hp = 50
 player_dmg = 10
@@ -103,37 +103,35 @@ all_sprites = pygame.sprite.Group()
 enemy_sprites = pygame.sprite.Group()
 static_sprites = pygame.sprite.Group()
 
-
 # классы с функциями и наследованиями, если их можно так назвать
 class Obj(pygame.sprite.Sprite):
-    def __init__(self,x,y,img):
+    def __init__(self,pos,img):
         pygame.sprite.Sprite.__init__(self)
         # image - отображение
         self.image = img
         self.border_color = BLUE
         # rect - такого же размера, что и спрайт
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
+        self.rect = self.image.get_rect(center = pos)
         # рамка выделяющая спрайт
     def paint_border(self):
         self.border = (0, 0, self.rect.width, self.rect.height)
         pygame.draw.rect(self.image, self.border_color, self.border, 3)
-
     def get_cord(self):
-        return [self.rect.x,self.rect.y]
+        return [self.rect.x + 32,self.rect.y+32]
 
 #не хочу создавать кучу классов для каждого статичного объекта, они почти идентичны, только функции и картинка отличаются
 # а структура переменных та же, пытаюсь придумать хитрость
 
 # на данном этапе просто придерживаюсь парадигмы наследования от абстрактного класса, возможно перепишу все структуры к чертям чтоь позже
 class Static_obj(Obj):
-    def __init__(self,x,y,type):
+    def __init__(self,pos,type):
         self.type = type
-        super().__init__(x,y,img = Obj_img_map[type])
+        super().__init__(pos,img = Obj_img_map[type])
 
 class Tree(Static_obj):
-    def __init__(self,x,y,type):
-        super().__init__(x,y,type='tree')
+    def __init__(self,pos,type):
+        super().__init__(pos,type='tree')
+        # твёрдый объект
         self.solid_x = self.rect.x+120
         self.solid_y = self.rect.y+265
         self.solid = pygame.rect.Rect(self.solid_x, self.solid_y, 30, 120)
@@ -143,43 +141,45 @@ class Tree(Static_obj):
         pygame.draw.rect(self.image,RPURPLE,self.solid_border,3)
 
 class NPC(Obj):
-    def __init__(self,x,y,hp,dmg,img):
+    def __init__(self,pos,hp,dmg,img):
         self.hp = hp
         self.dmg = dmg
-        super().__init__(x,y,img)
-# управление персонажем реализовано в функции udate
+        super().__init__(pos,img)
+
 class Player(NPC):
-    def __init__(self,x,y,hp,dmg):
-        super().__init__(x,y,hp,dmg,img = player_img_map['down'])
+    def __init__(self,pos):
+        super().__init__(pos,hp = player_Hp,dmg = player_dmg,img = player_img_map['down'])
         self.side = 'down'
         self.hit_time_dist = 500
         self.hit_time = 0
         self.hit_time_anim = 200
-    def update(self):
-        #перемещение
-        self.speedx = 0
-        self.speedy = 0
+        self.direction = pygame.math.Vector2()
+        self.speed = player_SPEED
+    def input(self):
         keystate = pygame.key.get_pressed()
-        if keystate[pygame.K_p]:
-            dash_co = player_Dash_co
-        else:
-            dash_co = 1
         if keystate[pygame.K_a]:
-            self.speedx = -player_SPEED * dash_co
+            self.direction.x = -1
             self.side = 'left'
-        if keystate[pygame.K_d]:
-            self.speedx = player_SPEED * dash_co
+        elif keystate[pygame.K_d]:
+            self.direction.x = 1
             self.side = 'right'
-        if keystate[pygame.K_w]:
-            self.speedy = -player_SPEED * dash_co
-            self.side = 'up'
-        if keystate[pygame.K_s]:
-            self.speedy = player_SPEED * dash_co
+        else:
+            self.direction.x = 0
             self.side = 'down'
+
+        if keystate[pygame.K_w]:
+            self.direction.y = -1
+            self.side = 'up'
+        elif keystate[pygame.K_s]:
+            self.direction.y = 1
+            self.side = 'down'
+        else:
+            self.direction.y = 0
+    def update(self):
+        self.input()
         if self.hit_time+self.hit_time_anim <= pygame.time.get_ticks():
             self.image = player_img_map[self.side]
-            self.rect.x += self.speedx
-            self.rect.y += self.speedy
+            self.rect.center += self.direction * self.speed
 
         self.paint_border()
     def hit(self):
@@ -217,11 +217,11 @@ class Player(NPC):
         return hit_rect
 
 class Enemy(NPC):
-    def __init__(self,x,y,hp,dmg):
+    def __init__(self,pos,hp,dmg):
         self.catch = False
         self.catch_timer = 0
         self.stop = False
-        super().__init__(x,y,hp,dmg,img = enemy_img_map['normal'])
+        super().__init__(pos,hp,dmg,img = enemy_img_map['normal'])
     def update(self):
         #перемещение
         cord_dif_x = player_1.rect.x - self.rect.x
@@ -241,6 +241,35 @@ class Enemy(NPC):
             self.image = enemy_img_map['normal']
         self.paint_border()
 
+class CameraGroup(pygame.sprite.Group):
+    def __init__(self):
+        super().__init__()
+        self.display_surface = pygame.display.get_surface()
+
+        #camera offset
+        self.offset = pygame.math.Vector2()
+        self.half_w = self.display_surface.get_size()[0]// 2
+        self.half_h = self.display_surface.get_size()[1]// 2
+        # ground
+        self.ground_surf = select_img('map.png')
+        self.ground_rect = self.ground_surf.get_rect(topleft = (0,0))
+
+    def center_target_camera(self,target):
+        self.offset.x = target.rect.centerx - self.half_w
+        self.offset.y = target.rect.centery - self.half_h
+
+    def custom_draw(self,player):
+
+        self.center_target_camera(player)
+
+        #ground
+        ground_offset = self.ground_rect.topleft - self.offset
+        self.display_surface.blit(self.ground_surf,ground_offset)
+
+        #active elements
+        for sprite in sorted(self.sprites(),key=lambda  sprite:sprite.rect.centery):
+            offset_pos = sprite.rect.topleft - self.offset
+            self.display_surface.blit(sprite.image,offset_pos)
 
 def Create_Arr_SO(count,x,y,distace,type):
     Result_Arr = [0]*count
@@ -249,7 +278,7 @@ def Create_Arr_SO(count,x,y,distace,type):
     if type == 'tree':
         real_type = Tree
     for i in range(0,count):
-        Result_Arr[i]  = real_type(x + m,y,type)
+        Result_Arr[i]  = real_type((x+m,y),type)
         m+=distace
     return Result_Arr
 
@@ -260,18 +289,18 @@ pygame.display.set_caption("Cobolt") # экран
 pygame.display.set_icon(icon) # иконка дерева - если вы помните (icon) была объявлена еще до структур
 clock = pygame.time.Clock()
 
-player_1 = Player(WIDTH/2,HEIGHT/2,player_Hp,player_dmg) # создаём спрайт класса "игрок"
-enemy_1 = Enemy(WIDTH/2 + 400,HEIGHT/2-200 ,enemy_hp,enemy_dmg) # спрайт класса вражина
+player_1 = Player((0,0)) # создаём спрайт класса "игрок"
+enemy_1 = Enemy((600,700),enemy_hp,enemy_dmg) # спрайт класса вражина
 
 #Some_OBJ_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2+100,400,'bush')
-Tree_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2-200,200,'tree')
+Tree_Arr = Create_Arr_SO(7,900,500,800,'tree')
 
-
-
+camera_group = CameraGroup()
 
 static_sprites.add(Tree_Arr)
 enemy_sprites.add(enemy_1)
-all_sprites.add(player_1,enemy_sprites,static_sprites) # добавляем объекты в спрайты
+all_sprites.add(player_1,enemy_sprites,static_sprites) # добавляем объекты в группы
+camera_group.add(all_sprites)
 
 hit_s = pygame.rect.Rect(0,0,0,0)
 
@@ -285,7 +314,7 @@ while run:
     #print(pygame.time.get_ticks())
     timer = pygame.time.get_ticks()
     print(clock)
-    #print(player_1.get_cord())
+    print(player_1.get_cord())
 
     # Ввод процесса (события)
 
@@ -317,17 +346,18 @@ while run:
                 player_1.rect.x-=where_x*player_SPEED
                 player_1.rect.y-=where_y*player_SPEED
 
+
+
     if intersection(hit_s,enemy_1.rect):
         enemy_1.hp-=player_1.dmg
     if enemy_1.hp<1:
         enemy_1.kill()
 
-
     #Рендеринг
     screen.fill(map_color)
-    all_sprites.draw(screen)
+    camera_group.custom_draw(player_1)
 
-    pygame.draw.rect(screen,RED,hit_s,4)
-    pygame.draw.circle(screen, BLACK,enemy_1.rect.center, enemy_view,5)
+    pygame.draw.rect(camera_group.ground_surf,RED,hit_s,4)
+    pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_1.rect.center, enemy_view,5)
     # Визуализация (сборка)
     pygame.display.flip() # отрисовка
