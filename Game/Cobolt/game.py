@@ -79,7 +79,8 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 RPURPLE = (185,0,105)
 
-map_color = (65,66,1)
+map_color = BLUE
+map_border = pygame.math.Vector2(4000,2000)
 
 #  главные параметры "настройки" - от них зависит сложность
 player_SPEED = 5
@@ -88,8 +89,8 @@ player_Hp = 50
 player_dmg = 10
 
 #требует срочной доработки для удобной настройки
-player_hit_range = 30
-player_hit_rad = 120
+player_hit_range = 32
+player_hit_rad = 128
 
 
 enemy_view = 200
@@ -175,43 +176,40 @@ class Player(NPC):
             self.side = 'down'
         else:
             self.direction.y = 0
+
     def update(self):
         self.input()
         if self.hit_time+self.hit_time_anim <= pygame.time.get_ticks():
             self.image = player_img_map[self.side]
             self.rect.center += self.direction * self.speed
-
+            if self.rect.x + 32 < 0:
+                self.rect.x +=self.speed
+            if self.rect.x + 32 > map_border.x:
+                self.rect.x -=self.speed
+            if self.rect.y + 32 < 0:
+                self.rect.y +=self.speed
+            if self.rect.y + 32 > map_border.y:
+                self.rect.y -=self.speed
         self.paint_border()
+
     def hit(self):
         self.hit_time = pygame.time.get_ticks()
         hit_x = self.rect.centerx
         hit_y = self.rect.centery
-        hit_w = 0
-        hit_h = 0
-        if (self.side == 'down'):
-            self.image = player_img_map['down_hit']
-            hit_x-=60
+        if (self.direction.y!=0 or self.direction == (0,0)):
             hit_w = player_hit_rad
-            hit_y+=30
             hit_h = player_hit_range
-        if (self.side == 'up'):
-            self.image = player_img_map['up_hit']
-            hit_x-=60
-            hit_w = player_hit_rad
-            hit_y-=60
-            hit_h = player_hit_range
-        if (self.side == 'left'):
-            self.image = player_img_map['left_hit']
-            hit_x-=60
+            hit_x+= -32 + 32*(self.direction.x-1)
+            hit_y+=-15 + 45*self.direction.y
+            if self.direction == (0,0):
+                hit_y+=45
+        elif self.direction.y==0:
+            hit_x+=-15 + 45*self.direction.x
+            hit_y+=-32 + 32*(self.direction.y-1)
             hit_w = player_hit_range
-            hit_y-=60
             hit_h = player_hit_rad
-        if (self.side == 'right'):
-            self.image = player_img_map['right_hit']
-            hit_x+=30
-            hit_w = player_hit_range
-            hit_y-=60
-            hit_h = player_hit_rad
+        self.side+='_hit'
+        self.image = player_img_map[self.side]
         hit_rect = pygame.rect.Rect(hit_x, hit_y,hit_w,hit_h)
         self.paint_border()
         return hit_rect
@@ -289,7 +287,7 @@ pygame.display.set_caption("Cobolt") # экран
 pygame.display.set_icon(icon) # иконка дерева - если вы помните (icon) была объявлена еще до структур
 clock = pygame.time.Clock()
 
-player_1 = Player((0,0)) # создаём спрайт класса "игрок"
+player_1 = Player((100,100)) # создаём спрайт класса "игрок"
 enemy_1 = Enemy((600,700),enemy_hp,enemy_dmg) # спрайт класса вражина
 
 #Some_OBJ_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2+100,400,'bush')
@@ -313,8 +311,8 @@ while run:
     clock.tick(FPS)
     #print(pygame.time.get_ticks())
     timer = pygame.time.get_ticks()
-    print(clock)
-    print(player_1.get_cord())
+    #print(clock)
+    #print(player_1.get_cord())
 
     # Ввод процесса (события)
 
