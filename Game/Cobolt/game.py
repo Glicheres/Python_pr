@@ -24,6 +24,38 @@ def create_hash(name,png):
     for i in range(len(png)):
         Hash[name[i]] = png[i]
     return Hash
+
+def open_text_file(name,type):
+    f = open(name,type)
+    try:
+        m = f.read()
+    finally:
+        f.close()
+    return m
+
+def text_to_map(text):
+    #перезапись текста
+    text_map = []
+    map_line = []
+    for i in range(len(text)):
+        if text[i] =='\n':
+            text_map.append(map_line)
+            map_line = []
+            #print('n: ',i)
+        else:
+            map_line.append(text[i])
+    del map_line
+    return text_map
+# создаёт массив равномерно распределённых квадратов - сетку
+def create_grid(map_ogc,power):
+    rect_arr = [0]* int(map_ogc.y)
+    for i in range(0,int(map_ogc.y)):
+        col_1 = [0]* int(map_ogc.x)
+        for j in range(0,int(map_ogc.x)):
+            col_1[j] = pygame.rect.Rect(j*power,i*power,power,power)
+            rect_arr[i] = col_1
+    return rect_arr
+
 # функция определяет знак и выводит 1 0 -1 - используется в основном для передвижения врага
 def sign(x):
     if x>0:
@@ -44,6 +76,11 @@ def intersection(rect_1,rect_2):
 
 # создаём хеш таблицы для боле удобного использования png файлами, после создания кадой таблицы
 # массивы удалятся, код написан в таком порядке чтобы экономить память насколько это возможно
+tail = ['1','2','3']
+tail_img = [select_img('tile.png'),select_img('tile2.png'), select_img('tile3.png')]
+tail_map = create_hash(tail,tail_img)
+del tail_img,tail
+
 player_img_name = ['down','up','right','left','down_hit','up_hit','right_hit','left_hit']
 player_img = [select_img('P_down.png'),select_img('P_up.png'),select_img('P_right.png'),select_img('P_left.png'),
               select_img('P_down_hit.png'),select_img('P_up_hit.png'),select_img('P_right_hit.png'),select_img('P_left_hit.png')]
@@ -80,8 +117,9 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 RPURPLE = (185,0,105)
 
-map_color = BLUE
+map_color = (63,72,204)
 map_border = pygame.math.Vector2(4000,2000)
+
 
 #  главные параметры "настройки" - от них зависит сложность
 player_SPEED = 5
@@ -245,7 +283,7 @@ class Enemy(NPC):
         self.paint_border()
 
 class CameraGroup(pygame.sprite.Group):
-    def __init__(self):
+    def __init__(self,image):
         super().__init__()
         self.display_surface = pygame.display.get_surface()
 
@@ -254,9 +292,11 @@ class CameraGroup(pygame.sprite.Group):
         self.half_w = self.display_surface.get_size()[0]// 2
         self.half_h = self.display_surface.get_size()[1]// 2
         # ground
-        self.ground_surf = select_img('map.png')
+        self.ground_surf = select_img(image)
         self.ground_rect = self.ground_surf.get_rect(topleft = (0,0))
 
+    def change_img(self,image):
+        self.ground_surf = select_img(image)
     def center_target_camera(self,target):
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
@@ -292,54 +332,51 @@ pygame.display.set_caption("Cobolt") # экран
 pygame.display.set_icon(icon) # иконка дерева - если вы помните (icon) была объявлена еще до структур
 clock = pygame.time.Clock()
 
+change_camera_group = CameraGroup('map.png')
+tail_group = pygame.sprite.Group()
+text_map_obj = text_to_map(open_text_file('tail_map.txt','r'))
+power = 400
+#map_obj_grid_count
+map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
+grid_obj = create_grid(map_ogc,power)
+for i in range(0,int(map_ogc.y)):
+    for j in range(0,int(map_ogc.x)):
+        if (text_map_obj[i][j]!='.'):
+            tail1 = Obj(grid_obj[i][j].center,tail_map[text_map_obj[i][j]])
+            tail_group.add(tail1)
+tail_group.draw(change_camera_group.ground_surf)
 
-f = open('object_map.txt','r')
-try:
-    m = f.read()
-finally:
-   f.close()
-print(m)
+pygame.image.save(change_camera_group.ground_surf,'img/screen.png')
 
-text_map = []
-map_line = []
-for i in range(len(m)):
-    if m[i] =='\n':
-        text_map.append(map_line)
-        map_line = []
-        print('n: ',i)
-    else:
-        map_line.append(m[i])
-del map_line
-print(text_map[2][4])
+# количество буков в файле должно соответствовать!
+text_map_obj = text_to_map(open_text_file('object_map.txt','r'))
+power = 100
+#map_obj_grid_count
+map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
+grid_obj = create_grid(map_ogc,power)
 
 
 
-
-col_2 = [0]*5
-for i in range(0,5):
-    col_1 = [0]*10
-    for j in range(0,10):
-        col_1[j] = pygame.rect.Rect(j*400,i*400,400,400)
-        col_2[i] = col_1
-
-player_1 = Player((100,100)) # создаём спрайт класса "игрок"
 
 #Some_OBJ_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2+100,400,'bush')
 #Tree_Arr = Create_Arr_SO(4,900,500,400,'tree')
-
 Tree_Arr = []
 enemy_Arr = []
-camera_group = CameraGroup()
-for i in range(0,5):
-    for j in range(0,10):
-        pygame.draw.rect(camera_group.ground_surf,WHITE,col_2[i][j],2)
-        if text_map[i][j] == 'P':
-            player_1 = Player((col_2[i][j].x + 200,col_2[i][j].y + 200))
-        if text_map[i][j] == 'T':
-            one_tree = Tree((col_2[i][j].x + 200,col_2[i][j].y + 200),'tree')
+camera_group = CameraGroup('screen.png')
+#анализ и создание объектов
+for i in range(0,int(map_ogc.y)):
+    for j in range(0,int(map_ogc.x)):
+        pygame.draw.rect(camera_group.ground_surf,WHITE,grid_obj[i][j],1)
+        if text_map_obj[i][j] == 'P':
+            player_1 = Player(grid_obj[i][j].center) # создаём спрайт класса "игрок"
+        if text_map_obj[i][j] == 'T':
+            one_tree = Tree(grid_obj[i][j].center,'tree')
             Tree_Arr.append(one_tree)
-        if text_map[i][j] == 'e':
-            enemy = Enemy((col_2[i][j].x + 200,col_2[i][j].y + 200),enemy_hp,enemy_dmg)
+        if text_map_obj[i][j] == 'b':
+            some_bush = Static_obj(grid_obj[i][j].center,'bush')
+            static_sprites.add(some_bush)
+        if text_map_obj[i][j] == 'e':
+            enemy = Enemy(grid_obj[i][j].center,enemy_hp,enemy_dmg)
             enemy_Arr.append(enemy)
 
 
@@ -408,5 +445,7 @@ while run:
 
 
     pygame.draw.rect(camera_group.ground_surf,RED,hit_s,4)
-    pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_Arr[3].rect.center, enemy_view,5)
+    #pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_Arr[3].rect.center, enemy_view,5)
     pygame.display.flip() # отрисовка
+#pygame.image.save(screen,'cache/screen.png')
+#pygame.image.save(camera_group.ground_surf,'cache/camera.png')
