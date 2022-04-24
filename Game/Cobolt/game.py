@@ -60,6 +60,7 @@ Obj_img = [select_img('Obj_img.png'),select_img('Tree.png'),select_img('xp.png')
 Obj_img_map = create_hash(Obj_img_name,Obj_img)
 del Obj_img_name,Obj_img
 
+
 #иконка окна "деревце"
 icon = Obj_img_map['tree']
 # пока что единственный созданный звук - звук врага
@@ -88,10 +89,10 @@ player_Dash_co = 3
 player_Hp = 50
 player_dmg = 10
 
-#требует срочной доработки для удобной настройки
 player_hit_range = 32
 player_hit_rad = 128
-
+player_hit_time_dist = 500
+player_hit_time_anim = 200
 
 enemy_view = 200
 enemy_speed = player_SPEED/2
@@ -150,12 +151,14 @@ class NPC(Obj):
 class Player(NPC):
     def __init__(self,pos):
         super().__init__(pos,hp = player_Hp,dmg = player_dmg,img = player_img_map['down'])
+
         self.side = 'down'
-        self.hit_time_dist = 500
+        self.hit_time_dist = player_hit_time_dist
         self.hit_time = 0
-        self.hit_time_anim = 200
+        self.hit_time_anim = player_hit_time_anim
         self.direction = pygame.math.Vector2()
         self.speed = player_SPEED
+
     def input(self):
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_a]:
@@ -200,15 +203,17 @@ class Player(NPC):
             hit_w = player_hit_rad
             hit_h = player_hit_range
             hit_x+= -32 + 32*(self.direction.x-1)
-            hit_y+=-15 + 45*self.direction.y
+            hit_y+= -15 + 45*self.direction.y
             if self.direction == (0,0):
                 hit_y+=45
         elif self.direction.y==0:
-            hit_x+=-15 + 45*self.direction.x
-            hit_y+=-32 + 32*(self.direction.y-1)
+            hit_x+= -15 + 45*self.direction.x
+            hit_y+= -32 + 32*(self.direction.y-1)
             hit_w = player_hit_range
             hit_h = player_hit_rad
+
         self.side+='_hit'
+
         self.image = player_img_map[self.side]
         hit_rect = pygame.rect.Rect(hit_x, hit_y,hit_w,hit_h)
         self.paint_border()
@@ -265,7 +270,7 @@ class CameraGroup(pygame.sprite.Group):
         self.display_surface.blit(self.ground_surf,ground_offset)
 
         #active elements
-        for sprite in sorted(self.sprites(),key=lambda  sprite:sprite.rect.centery):
+        for sprite in self.sprites(): #sorted(self.sprites(),key=lambda  sprite:sprite.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image,offset_pos)
 
@@ -287,16 +292,60 @@ pygame.display.set_caption("Cobolt") # экран
 pygame.display.set_icon(icon) # иконка дерева - если вы помните (icon) была объявлена еще до структур
 clock = pygame.time.Clock()
 
+
+f = open('object_map.txt','r')
+try:
+    m = f.read()
+finally:
+   f.close()
+print(m)
+
+text_map = []
+map_line = []
+for i in range(len(m)):
+    if m[i] =='\n':
+        text_map.append(map_line)
+        map_line = []
+        print('n: ',i)
+    else:
+        map_line.append(m[i])
+del map_line
+print(text_map[2][4])
+
+
+
+
+col_2 = [0]*5
+for i in range(0,5):
+    col_1 = [0]*10
+    for j in range(0,10):
+        col_1[j] = pygame.rect.Rect(j*400,i*400,400,400)
+        col_2[i] = col_1
+
 player_1 = Player((100,100)) # создаём спрайт класса "игрок"
-enemy_1 = Enemy((600,700),enemy_hp,enemy_dmg) # спрайт класса вражина
 
 #Some_OBJ_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2+100,400,'bush')
-Tree_Arr = Create_Arr_SO(7,900,500,800,'tree')
+#Tree_Arr = Create_Arr_SO(4,900,500,400,'tree')
 
+Tree_Arr = []
+enemy_Arr = []
 camera_group = CameraGroup()
+for i in range(0,5):
+    for j in range(0,10):
+        pygame.draw.rect(camera_group.ground_surf,WHITE,col_2[i][j],2)
+        if text_map[i][j] == 'P':
+            player_1 = Player((col_2[i][j].x + 200,col_2[i][j].y + 200))
+        if text_map[i][j] == 'T':
+            one_tree = Tree((col_2[i][j].x + 200,col_2[i][j].y + 200),'tree')
+            Tree_Arr.append(one_tree)
+        if text_map[i][j] == 'e':
+            enemy = Enemy((col_2[i][j].x + 200,col_2[i][j].y + 200),enemy_hp,enemy_dmg)
+            enemy_Arr.append(enemy)
+
+
 
 static_sprites.add(Tree_Arr)
-enemy_sprites.add(enemy_1)
+enemy_sprites.add(enemy_Arr)
 all_sprites.add(player_1,enemy_sprites,static_sprites) # добавляем объекты в группы
 camera_group.add(all_sprites)
 
@@ -335,6 +384,7 @@ while run:
     #elif (player_1.hit_time + player_1.hit_time_anim <= timer):
     else:
         hit_s = pygame.rect.Rect(0,0,0,0)
+
      #сырой алгоритм, но ничего не поделаешь - чем больше деревьев, тем медленнее работает при пересечении
     if pygame.sprite.spritecollideany(player_1,Tree_Arr):
         for i in range(len(Tree_Arr)):
@@ -344,18 +394,19 @@ while run:
                 player_1.rect.x-=where_x*player_SPEED
                 player_1.rect.y-=where_y*player_SPEED
 
-
-
-    if intersection(hit_s,enemy_1.rect):
-        enemy_1.hp-=player_1.dmg
-    if enemy_1.hp<1:
-        enemy_1.kill()
+    # такой же сырой алгоритм - точно перепишу
+    for i in range(len(enemy_Arr)):
+        if intersection(hit_s,enemy_Arr[i].rect):
+            enemy_Arr[i].hp-=player_1.dmg
+            if enemy_Arr[i].hp<1:
+                enemy_Arr[i].kill()
 
     #Рендеринг
     screen.fill(map_color)
+    # Визуализация (сборка)
     camera_group.custom_draw(player_1)
 
+
     pygame.draw.rect(camera_group.ground_surf,RED,hit_s,4)
-    pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_1.rect.center, enemy_view,5)
-    # Визуализация (сборка)
+    pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_Arr[3].rect.center, enemy_view,5)
     pygame.display.flip() # отрисовка
