@@ -1,6 +1,6 @@
-import pygame,random,math
+import time,pygame,random,math, os
 import sys
-import os
+
 
 # настройка папки ассетов
 game_folder = os.path.dirname(__file__)
@@ -11,6 +11,8 @@ sound_floder = os.path.join(game_folder,'sound')
 pygame.mixer.init()
 Chanel_1 = pygame.mixer.Channel(0)
 
+front_floder = os.path.join(game_folder,'front')
+pygame.font.init() # инициаллизация шрифтов
 #удобные, помогающие функции
 # выбрать фото по имени
 def select_img(x):
@@ -18,6 +20,10 @@ def select_img(x):
 #выбрать звук по имени
 def select_sound(x):
     return  pygame.mixer.Sound(os.path.join(sound_floder,x))
+def select_front(x):
+    return  pygame.font.Font(os.path.join(front_floder,'GangSmallYuxian.ttf'),x)
+def check_button(x):
+    return pygame.key.get_pressed()[x]
 #создание Хэш - таблицы
 def create_hash(name,png):
     Hash = {}
@@ -25,13 +31,32 @@ def create_hash(name,png):
         Hash[name[i]] = png[i]
     return Hash
 
-def open_text_file(name,type):
-    f = open(name,type)
+# пишу генератор/редактор
+def read_text_file(name):
+    f = open(name,'r')
     try:
         m = f.read()
     finally:
         f.close()
     return m
+def write_text_file(name, s):
+    f = open(name,'w')
+    try:
+        m = f.write(s)
+    finally:
+        f.close()
+    return m
+# вернёт имя файла с рандомой "картой"(не png)
+def save_random_map(x,y,tile_count,name):
+    map_1 = str()
+    for i in range(y):
+        for j in range(x):
+            map_1 += str(random.randint(1,tile_count))
+        map_1 += '\n'
+    map_1 +='.'
+    print(map_1)
+    write_text_file(name, map_1)
+    return name
 
 def text_to_map(text):
     #перезапись текста
@@ -64,6 +89,8 @@ def sign(x):
         return 0
     if x<0:
         return -1
+
+
 #отслеживание пересечения 2х прямоугольных областей
 def intersection(rect_1,rect_2):
     if rect_1.right > rect_2.left and \
@@ -76,8 +103,8 @@ def intersection(rect_1,rect_2):
 
 # создаём хеш таблицы для боле удобного использования png файлами, после создания кадой таблицы
 # массивы удалятся, код написан в таком порядке чтобы экономить память насколько это возможно
-tail = ['1','2','3']
-tail_img = [select_img('tile.png'),select_img('tile2.png'), select_img('tile3.png')]
+tail = ['1','2','3','4']
+tail_img = [select_img('tile1.png'),select_img('tile2.png'), select_img('tile3.png'),select_img('tile4.png')]
 tail_map = create_hash(tail,tail_img)
 del tail_img,tail
 
@@ -92,56 +119,18 @@ enemy_img = [select_img('enemy.png'),select_img('enemy_alert.png'),select_img('e
 enemy_img_map = create_hash(enemy_img_name,enemy_img)
 del enemy_img_name,enemy_img
 
-Obj_img_name = ['Obj','tree','xp','apple','bush']
-Obj_img = [select_img('Obj_img.png'),select_img('Tree.png'),select_img('xp.png'),select_img('apple.png'),select_img('bush_1_mid.png')]
+Obj_img_name = ['Obj','icon','tree','xp','apple','bush']
+Obj_img = [select_img('Obj_img.png'),select_img('icon.png'),select_img('Tree.png'),select_img('xp.png'),select_img('apple.png'),select_img('bush_1_mid.png')]
 Obj_img_map = create_hash(Obj_img_name,Obj_img)
 del Obj_img_name,Obj_img
 
 
 #иконка окна "деревце"
-icon = Obj_img_map['tree']
+icon = Obj_img_map['icon']
 # пока что единственный созданный звук - звук врага
 alert_sound = select_sound('alert.mp3')
+frontir = select_front(60)
 
-# 1280x800
-# 1920x1080
-WIDTH = 1280  # ширина игрового окна
-HEIGHT = 800 # высота игрового окна
-FPS = 60 # частота кадров в секунду
-
-#просто цвета
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-RPURPLE = (185,0,105)
-
-map_color = (63,72,204)
-map_border = pygame.math.Vector2(4000,2000)
-
-
-#  главные параметры "настройки" - от них зависит сложность
-player_SPEED = 5
-player_Dash_co = 3
-player_Hp = 50
-player_dmg = 10
-
-player_hit_range = 32
-player_hit_rad = 128
-player_hit_time_dist = 500
-player_hit_time_anim = 200
-
-enemy_view = 200
-enemy_speed = player_SPEED/2
-enemy_hp = 30
-enemy_dmg = 10
-
-
-# создаём группы спрайтов - надо над ними будет поработать :)
-all_sprites = pygame.sprite.Group()
-enemy_sprites = pygame.sprite.Group()
-static_sprites = pygame.sprite.Group()
 
 # классы с функциями и наследованиями, если их можно так назвать
 class Obj(pygame.sprite.Sprite):
@@ -263,6 +252,7 @@ class Enemy(NPC):
         self.catch_timer = 0
         self.stop = False
         super().__init__(pos,hp,dmg,img = enemy_img_map['normal'])
+
     def update(self):
         #перемещение
         cord_dif_x = player_1.rect.x - self.rect.x
@@ -277,6 +267,7 @@ class Enemy(NPC):
                 self.image = enemy_img_map['angry']
                 self.rect.x += enemy_speed*sign(cord_dif_x)
                 self.rect.y += enemy_speed*sign(cord_dif_y)
+
         else:
             self.catch = False
             self.image = enemy_img_map['normal']
@@ -314,6 +305,7 @@ class CameraGroup(pygame.sprite.Group):
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image,offset_pos)
 
+# можно удалять
 def Create_Arr_SO(count,x,y,distace,type):
     Result_Arr = [0]*count
     m = 0
@@ -325,127 +317,238 @@ def Create_Arr_SO(count,x,y,distace,type):
         m+=distace
     return Result_Arr
 
+#просто цвета
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+RPURPLE = (185,0,105)
+
+
+
+
+map_color = (63,72,204)
+map_border = pygame.math.Vector2(4000,2000)
+# 1280x800
+# 1920x1080
+WIDTH = 1280  # ширина игрового окна
+HEIGHT = 800 # высота игрового окна
+FPS = 60 # частота кадров в секунду
+
 pygame.init() #инициаллизация всех игровых объедков
-pygame.mixer.init()  # инициализация звука
+
 screen = pygame.display.set_mode((WIDTH, HEIGHT)) # создаём экран)
-pygame.display.set_caption("Cobolt") # экран
+pygame.display.set_caption("CoboLt") # экран
 pygame.display.set_icon(icon) # иконка дерева - если вы помните (icon) была объявлена еще до структур
 clock = pygame.time.Clock()
 
-change_camera_group = CameraGroup('map.png')
-tail_group = pygame.sprite.Group()
-text_map_obj = text_to_map(open_text_file('tail_map.txt','r'))
-power = 400
-#map_obj_grid_count
-map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
-grid_obj = create_grid(map_ogc,power)
-for i in range(0,int(map_ogc.y)):
-    for j in range(0,int(map_ogc.x)):
-        if (text_map_obj[i][j]!='.'):
-            tail1 = Obj(grid_obj[i][j].center,tail_map[text_map_obj[i][j]])
-            tail_group.add(tail1)
-tail_group.draw(change_camera_group.ground_surf)
-
-pygame.image.save(change_camera_group.ground_surf,'img/screen.png')
-
-# количество буков в файле должно соответствовать!
-text_map_obj = text_to_map(open_text_file('object_map.txt','r'))
-power = 100
-#map_obj_grid_count
-map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
-grid_obj = create_grid(map_ogc,power)
 
 
+#  главные параметры "настройки" - от них зависит сложность
+player_SPEED = 7
+player_Dash_co = 3
+player_Hp = 50
+player_dmg = 10
+
+player_hit_range = 32
+player_hit_rad = 128
+player_hit_time_dist = 500
+player_hit_time_anim = 200
+
+enemy_view = 400
+enemy_speed = player_SPEED/2
+enemy_hp = 30
+enemy_dmg = 10
 
 
-#Some_OBJ_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2+100,400,'bush')
-#Tree_Arr = Create_Arr_SO(4,900,500,400,'tree')
-Tree_Arr = []
-enemy_Arr = []
-camera_group = CameraGroup('screen.png')
-#анализ и создание объектов
-for i in range(0,int(map_ogc.y)):
-    for j in range(0,int(map_ogc.x)):
-        pygame.draw.rect(camera_group.ground_surf,WHITE,grid_obj[i][j],1)
-        if text_map_obj[i][j] == 'P':
-            player_1 = Player(grid_obj[i][j].center) # создаём спрайт класса "игрок"
-        if text_map_obj[i][j] == 'T':
-            one_tree = Tree(grid_obj[i][j].center,'tree')
-            Tree_Arr.append(one_tree)
-        if text_map_obj[i][j] == 'b':
-            some_bush = Static_obj(grid_obj[i][j].center,'bush')
-            static_sprites.add(some_bush)
-        if text_map_obj[i][j] == 'e':
-            enemy = Enemy(grid_obj[i][j].center,enemy_hp,enemy_dmg)
-            enemy_Arr.append(enemy)
-
-
-
-static_sprites.add(Tree_Arr)
-enemy_sprites.add(enemy_Arr)
-all_sprites.add(player_1,enemy_sprites,static_sprites) # добавляем объекты в группы
-camera_group.add(all_sprites)
-
-hit_s = pygame.rect.Rect(0,0,0,0)
-
-# заполняем экран цветастостью
-screen.fill(map_color)
-
-run = True
-while run:
-
+# для изменения размера экрана
+# WIDTH = 1280  # ширина игрового окна
+# HEIGHT = 800 # высота игрового окна
+# screen = pygame.display.set_mode((WIDTH, HEIGHT)) переназначаем экран с внесёнными изменениями
+run_all = True
+run_game = True
+run_menu = True
+while run_all == True :
     clock.tick(FPS)
-    #print(pygame.time.get_ticks())
-    timer = pygame.time.get_ticks()
-    #print(clock)
-    #print(player_1.get_cord())
 
-    # Ввод процесса (события)
-
-
-    # тут могла быть ваша реклама, но даже её нет
-    # всё потому что ввод клавиш(как таковых событий) - осущетвляется в update игрока
-    # Обновление всех спрайтов
-    # не забываем что внути udate прописаны event для управления
-    all_sprites.update()
-
-
-    #обработка событий
-    for event in pygame.event.get():
-        # проверить закрытие окна
-        if event.type == pygame.QUIT: # работа "крестика"
-            run = False # завершает цикл
-    # удар через определённое время
-    if pygame.key.get_pressed()[pygame.K_o] and player_1.hit_time + player_1.hit_time_dist <= timer:
-        hit_s = player_1.hit()
-    #elif (player_1.hit_time + player_1.hit_time_anim <= timer):
-    else:
-        hit_s = pygame.rect.Rect(0,0,0,0)
-
-     #сырой алгоритм, но ничего не поделаешь - чем больше деревьев, тем медленнее работает при пересечении
-    if pygame.sprite.spritecollideany(player_1,Tree_Arr):
-        for i in range(len(Tree_Arr)):
-            if (intersection(Tree_Arr[i].solid,player_1.rect)):
-                where_x = sign(Tree_Arr[i].solid.centerx - player_1.rect.centerx)
-                where_y = sign(Tree_Arr[i].solid.centery - player_1.rect.centery)
-                player_1.rect.x-=where_x*player_SPEED
-                player_1.rect.y-=where_y*player_SPEED
-
-    # такой же сырой алгоритм - точно перепишу
-    for i in range(len(enemy_Arr)):
-        if intersection(hit_s,enemy_Arr[i].rect):
-            enemy_Arr[i].hp-=player_1.dmg
-            if enemy_Arr[i].hp<1:
-                enemy_Arr[i].kill()
-
-    #Рендеринг
     screen.fill(map_color)
-    # Визуализация (сборка)
-    camera_group.custom_draw(player_1)
+    # отвечает за индексацию(отслеживание выбора)
+    text_index = 0
+    #отвечает за тип селектора
+    text_select = 0
+    #отвечает за количество отображаемого текста селектора
+    text_index_lim = 2
+    run_menu = True
+    while run_menu:
+        clock.tick(10)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run_menu = False
+                run_game = False
+                run_all = False
+        screen.blit(select_img('menu.png'),(0,0))
+        # нашъ прекрасный шрифт размера 60)
+        frontir = select_front(60)
+        if  check_button(pygame.K_s) or check_button(pygame.K_DOWN):
+            if text_index == text_index_lim:
+                text_index = 0
+            else:
+                text_index+=1
+        if check_button(pygame.K_w) or check_button(pygame.K_UP):
+            if text_index == 0:
+                text_index = text_index_lim
+            else:
+                text_index-=1
+        #отрисовка нашей менюшки)
+        text_arr = ['Play','Settings(in progress)','Quit','Play story','Map editor(in progress)','Back']
+        frontir.render('settings',True,BLUE)
+        for i in range(0,text_index_lim+1):
+            screen.blit(frontir.render(text_arr[i+3*text_select],True,BLUE),(70,250+i*100))
+        screen.blit(frontir.render(text_arr[text_index+3*text_select],True,RPURPLE),(73,253+text_index*100))
+        if check_button(pygame.K_KP_ENTER) or check_button(pygame.K_RETURN):
+            if text_index==0:
+                if text_select==0:
+                    text_select = 1
+                else:
+                    run_menu=False
+                    run_game = True
+            if text_index == 2:
+                if text_select == 1:
+                    text_select=0
+                else:
+                    run_menu = False
+                    run_game = False
+                    run_all = False
+        pygame.display.flip()
+
+    # обнуляем группы спрайтов
+    all_sprites = pygame.sprite.Group()
+    enemy_sprites = pygame.sprite.Group()
+    static_sprites = pygame.sprite.Group()
+
+    # создаём карточку
+    change_camera_group = CameraGroup('map.png')
+    tail_group = pygame.sprite.Group()
+    text_map_obj = text_to_map(read_text_file('tail_map.txt'))
+    power = 400
+    #map_obj_grid_count
+    map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
+    grid_obj = create_grid(map_ogc,power)
+    for i in range(0,int(map_ogc.y)):
+        for j in range(0,int(map_ogc.x)):
+            if (text_map_obj[i][j]!='.'):
+                tail1 = Obj(grid_obj[i][j].center,tail_map[text_map_obj[i][j]])
+                tail_group.add(tail1)
+    tail_group.draw(change_camera_group.ground_surf)
+    pygame.image.save(change_camera_group.ground_surf,'img/screen.png')
 
 
-    pygame.draw.rect(camera_group.ground_surf,RED,hit_s,4)
-    #pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_Arr[3].rect.center, enemy_view,5)
-    pygame.display.flip() # отрисовка
-#pygame.image.save(screen,'cache/screen.png')
-#pygame.image.save(camera_group.ground_surf,'cache/camera.png')
+
+    # количество буков в файле должно соответствовать!
+    text_map_obj = text_to_map(read_text_file('object_map.txt'))
+    power = 100
+    #map_obj_grid_count
+    map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
+    grid_obj = create_grid(map_ogc,power)
+
+
+    #Some_OBJ_Arr = Create_Arr_SO(2,WIDTH/2-500,HEIGHT/2+100,400,'bush')
+    #Tree_Arr = Create_Arr_SO(4,900,500,400,'tree')
+    Tree_Arr = []
+    enemy_Arr = []
+    camera_group = CameraGroup('screen.png')
+    #анализ и создание объектов
+    for i in range(0,int(map_ogc.y)):
+        for j in range(0,int(map_ogc.x)):
+            pygame.draw.rect(camera_group.ground_surf,WHITE,grid_obj[i][j],1)
+            if text_map_obj[i][j] == 'P':
+                player_1 = Player(grid_obj[i][j].center) # создаём спрайт класса "игрок"
+            if text_map_obj[i][j] == 'T':
+                one_tree = Tree(grid_obj[i][j].center,'tree')
+                Tree_Arr.append(one_tree)
+            if text_map_obj[i][j] == 'b':
+                some_bush = Static_obj(grid_obj[i][j].center,'bush')
+                static_sprites.add(some_bush)
+            if text_map_obj[i][j] == 'e':
+                enemy = Enemy(grid_obj[i][j].center,enemy_hp,enemy_dmg)
+                enemy_Arr.append(enemy)
+
+
+    static_sprites.add(Tree_Arr)
+    enemy_sprites.add(enemy_Arr)
+    all_sprites.add(player_1,enemy_sprites,static_sprites) # добавляем объекты в группы
+    camera_group.add(all_sprites)
+
+
+
+    # прямоугольничек атаки)))
+    hit_s = pygame.rect.Rect(0,0,0,0)
+
+
+    # заполняем экран цветастостью
+    screen.fill(map_color)
+    while run_game:
+        clock.tick(FPS)
+        #print(pygame.time.get_ticks())
+        timer = pygame.time.get_ticks()
+        #print(clock)
+        #print(player_1.get_cord())
+        #print(len(all_sprites))
+
+        # Ввод процесса (события)
+
+
+        # тут могла быть ваша реклама, но даже её нет
+        # всё потому что ввод клавиш(как таковых событий) - осущетвляется в update игрока
+        # Обновление всех спрайтов
+        # не забываем что внути udate прописаны event для управления
+        all_sprites.update()
+
+
+        #обработка событий
+        for event in pygame.event.get():
+            # проверить закрытие окна
+            if event.type == pygame.QUIT: # работа "крестика"
+                run_all = False # завершает цикл
+                run_game = False
+
+        # удар через определённое время
+        if pygame.key.get_pressed()[pygame.K_o] and player_1.hit_time + player_1.hit_time_dist <= timer:
+            hit_s = player_1.hit()
+        #elif (player_1.hit_time + player_1.hit_time_anim <= timer):
+        else:
+            hit_s = pygame.rect.Rect(0,0,0,0)
+
+         #сырой алгоритм, но ничего не поделаешь - чем больше деревьев, тем медленнее работает при пересечении
+        if pygame.sprite.spritecollideany(player_1,Tree_Arr):
+            for i in range(len(Tree_Arr)):
+                if (intersection(Tree_Arr[i].solid,player_1.rect)):
+                    where_x = sign(Tree_Arr[i].solid.centerx - player_1.rect.centerx)
+                    where_y = sign(Tree_Arr[i].solid.centery - player_1.rect.centery)
+                    player_1.rect.x-=where_x*player_SPEED
+                    player_1.rect.y-=where_y*player_SPEED
+
+        # такой же сырой алгоритм - точно перепишу
+        for i in range(len(enemy_Arr)):
+            if intersection(hit_s,enemy_Arr[i].rect):
+                enemy_Arr[i].hp-=player_1.dmg
+                if enemy_Arr[i].hp<1:
+                    enemy_Arr[i].kill()
+            if intersection(player_1.rect,enemy_Arr[i].rect):
+                player_1.kill()
+                run_game = False
+
+
+        #Рендеринг
+        screen.fill(map_color)
+        # Визуализация (сборка)
+        camera_group.custom_draw(player_1)
+
+
+
+        pygame.draw.rect(camera_group.ground_surf,RED,hit_s,4)
+        #pygame.draw.circle(camera_group.ground_surf, BLACK,enemy_Arr[3].rect.center, enemy_view,5)
+        pygame.display.flip() # отрисовка
+    #pygame.image.save(screen,'cache/screen.png')
+    #pygame.image.save(camera_group.ground_surf,'cache/camera.png')
