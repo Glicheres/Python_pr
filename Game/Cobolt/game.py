@@ -51,17 +51,6 @@ def write_text_file(name, Arr):
     finally:
         f.close()
     return name
-# вернёт имя файла с рандомой "картой"(не png)
-def save_random_map(x,y,tile_count,name):
-    map_1 = str()
-    for i in range(y):
-        for j in range(x):
-            map_1 += str(random.randint(1,tile_count))
-        map_1 += '\n'
-    map_1 +='.'
-    print(map_1)
-    write_text_file(name, map_1)
-    return name
 
 def text_to_map(text):
     #перезапись текста
@@ -71,7 +60,6 @@ def text_to_map(text):
         if text[i] =='\n':
             text_map.append(map_line)
             map_line = []
-            #print('n: ',i)
         else:
             map_line.append(text[i])
     del map_line
@@ -230,6 +218,7 @@ class Key(Static_obj):
         if intersection(player_1.rect,self.rect):
             player_1.counter_key+=1
             self.kill()
+
 class Tree(Static_obj):
 
     def __init__(self,pos,type):
@@ -255,7 +244,7 @@ class Tree(Static_obj):
         y = 0
         if self.rect.x<65:
             m = 0
-        elif self.rect.x>(map_border.x - 100):
+        elif self.rect.x>(map_border.x - 200):
             m = 1
         if self.rect.y<65:
             y = random.randint(self.rect.centery+150,self.rect.centery + 192)
@@ -267,6 +256,7 @@ class Tree(Static_obj):
             x = random.randint(self.solid.x + 60,self.rect.x + 245)
         apple = Apple((x,y))
         return apple
+
 class Rod(Static_obj):
     def __init__(self,pos):
         super().__init__(pos,type ='rod')
@@ -291,6 +281,8 @@ class Rod_group(pygame.sprite.Group):
     def rod_off(self):
         for sprite in self.sprites():
             sprite.rod_off()
+
+
 class heart(Obj):
     def __init__(self,numb):
         self.numb = numb
@@ -348,6 +340,7 @@ class En_sp(Tree):
     def update(self):
         super().update()
 
+
 class NPC(Obj):
     def __init__(self,pos,hp,dmg,img):
         self.hp = hp
@@ -367,7 +360,6 @@ class NPC(Obj):
                 all_sprites.add(xp)
                 camera_group.add(xp)
                 player_1.counter_kill+=1
-                print(player_1.counter_kill)
                 self.kill()
     def update(self):
         self.check_kill()
@@ -530,6 +522,7 @@ class Boss(NPC):
         self.stan_timer_dist = 8000
     def update(self):
         super().update()
+        print(self.hp)
         if not self.stan:
             self.move_to_player(boss_speed)
             if self.rod_is_real and self.rod_counter == self.rod_counter_t:
@@ -537,7 +530,7 @@ class Boss(NPC):
                 self.stan_timer = pygame.time.get_ticks()
             player_1.dmg = 10
         if self.stan:
-            player_1.dmg = 500
+            player_1.dmg = 100
         self.paint_border()
         pygame.draw.circle(self.image, BLACK,(256,256), 220,5)
         if self.DDTP < 220:
@@ -678,6 +671,7 @@ clock = pygame.time.Clock()
 
 
 #  главные параметры "настройки" - от них зависит сложность
+
 player_SPEED = 7
 player_Dash_co = 3
 player_Hp = 40
@@ -712,6 +706,10 @@ next_map_flag = False
 
 while run_all == True :
     pygame.display.set_icon(icon)
+    if not next_map_flag:
+        map_file = '1_tail_map.txt'
+        obj_file = '1_object_map.txt'
+        map_border.x=4000
     if next_map_flag:
         run_game = True
         map_file = '2_tail_map.txt'
@@ -836,7 +834,7 @@ while run_all == True :
                         static_sprites.add(heart_1)
                 if text_map_obj[i][j] == 'T':
                     some_tree = Tree((grid_obj[i][j].centerx,grid_obj[i][j].centery-200),'tree')
-                    for k in range(random.randint(0,2)):
+                    for k in range(random.randint(0,3)):
                         some_apple = some_tree.spawn_apple()
                         static_sprites.add(some_apple)
                     static_sprites.add(some_tree)
@@ -892,7 +890,7 @@ while run_all == True :
         # Ввод процесса (события)
 
         # Обновление всех спрайтов
-        # не забываем что внути udate прописаны event для управления
+        # не забываем что внути update прописаны event для управления
 
         #обработка событий
         for event in pygame.event.get():
@@ -908,14 +906,11 @@ while run_all == True :
                 all_sprites.add(some_enemy)
                 camera_group.add(some_enemy)
                 time_to_sp = timer
-        print(player_1.hp,'\t',player_Hp)
         if player_1.hp+9 < player_Hp:
             player_Hp = (player_1.hp//10)*10
         if player_1.hp > player_Hp+9:
             player_Hp = (player_1.hp//10)*10
-            print(player_1.hp,'\t',player_Hp)
             some_heart = heart((player_1.hp//10)-1)
-            print(some_heart.rect.center)
             static_sprites.add(some_heart)
             camera_group.add(some_heart)
             all_sprites.add(some_heart)
@@ -942,6 +937,8 @@ while run_all == True :
                 time.sleep(5)
                 run_game = False
                 run_menu = True
+                next_map_flag = False
+                Dung.Gate_is_open = False
 
         if Dung_ex:
             if Dung.Gate_is_open:
@@ -955,6 +952,8 @@ while run_all == True :
                     player_counter_kill = player_1.counter_kill
 
         if player_1.hp<=0:
+            next_map_flag = False
+            Dung.Gate_is_open = False
             player_1.kill()
             camera_group.custom_draw(player_1)
             run_game = False
@@ -966,7 +965,7 @@ while run_all == True :
         all_sprites.update()
         # Визуализация (сборка)
         camera_group.custom_draw(player_1)
-        pygame.draw.rect(camera_group.ground_surf,RED,player_1.hit_s,4)
+        #pygame.draw.rect(camera_group.ground_surf,RED,player_1.hit_s,4)
         pygame.display.flip() # отрисовка
     #pygame.image.save(screen,'cache/screen.png')
     #pygame.image.save(camera_group.ground_surf,'cache/camera.png')
