@@ -803,6 +803,8 @@ while run_all == True :
         screen.blit(frontir.render(text_arr[text_index+3*text_select],True,RPURPLE),(73,253+text_index*100))
         pygame.display.flip()
     if run_game:
+        if not next_map_flag:
+            player_Hp = 40
         #exist
         Dung_ex = False
         Spawner_ex = False
