@@ -39,11 +39,13 @@ def read_text_file(name):
     finally:
         f.close()
     return m
-def write_text_file(name, Arr):
+def write_text_file(name, Arr,type):
     s = str()
     for i in range(len(Arr)):
         for j in range(len(Arr[i])):
             s+=str(Arr[i][j])
+            if type and j != len(Arr[i]) - 1 :
+                s+=' '
         s+='\n'
     f = open(name,'w')
     try:
@@ -199,8 +201,6 @@ class Apple(Static_obj):
             player_1.counter_apple+=1
             player_1.hp+=10
             self.kill()
-    def interfase_update(self):
-        self.rect.center = (player_1.rect.x + 590,player_1.rect.y - 300)
 class Xp(Static_obj):
     def __init__(self,pos):
         super().__init__(pos,type ='xp')
@@ -282,12 +282,10 @@ class Rod_group(pygame.sprite.Group):
         for sprite in self.sprites():
             sprite.rod_off()
 
-
 class heart(Obj):
     def __init__(self,numb):
         self.numb = numb
-        super().__init__(pos = (player_1.rect.x+640,player_1.rect.y-340),img = select_img('heart.png'))
-        self.rect.center = (player_1.rect.x+640 - self.numb * 50 ,player_1.rect.y-340)
+        super().__init__(pos = (player_1.rect.x+640 - self.numb * 50,player_1.rect.y-340),img = select_img('heart.png'))
     def update(self):
         self.rect.center = (player_1.rect.x+640 - self.numb * 50 ,player_1.rect.y-340)
         if (self.numb+1)* 10>player_1.hp:
@@ -339,7 +337,6 @@ class En_sp(Tree):
         self.solid_border = (0,50,200,90)
     def update(self):
         super().update()
-
 
 class NPC(Obj):
     def __init__(self,pos,hp,dmg,img):
@@ -509,7 +506,7 @@ class Midge(NPC):
             super().update()
             self.move_to_player(3)
             if self.DDTP <= enemy_attack_range and pygame.time.get_ticks() > self.attack_timer + 700:
-                player_1.hp-=enemy_dmg
+                player_1.hp-=self.dmg
                 self.attack_timer = pygame.time.get_ticks()
 class Boss(NPC):
     def __init__(self, pos):
@@ -522,12 +519,12 @@ class Boss(NPC):
         self.stan_timer_dist = 8000
     def update(self):
         super().update()
-        print(self.hp)
         if not self.stan:
             self.move_to_player(boss_speed)
             if self.rod_is_real and self.rod_counter == self.rod_counter_t:
                 self.stan = True
                 self.stan_timer = pygame.time.get_ticks()
+
             player_1.dmg = 10
         if self.stan:
             player_1.dmg = 100
@@ -545,37 +542,31 @@ class CameraGroup(pygame.sprite.Group):
         super().__init__()
         self.display_surface = pygame.display.get_surface()
 
-        #camera offset
+        #
         self.offset = pygame.math.Vector2()
         self.half_w = self.display_surface.get_size()[0]// 2
         self.half_h = self.display_surface.get_size()[1]// 2
-        # ground
+        #
         self.ground_surf = select_img(image)
         self.ground_rect = self.ground_surf.get_rect(topleft = (0,0))
-    def change_img(self,image):
-        self.ground_surf = select_img(image)
     def center_target_camera(self,target):
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
-
     def custom_draw(self,player):
-
         self.center_target_camera(player)
-
         #ground
         ground_offset = self.ground_rect.topleft - self.offset
         self.display_surface.fill(map_color)
         self.display_surface.blit(self.ground_surf,ground_offset)
 
         #active elements
-        for sprite in self.sprites(): #sorted(self.sprites(),key=lambda  sprite:sprite.rect.centery):
+        for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image,offset_pos)
 
 def redactor(power,map_to_change,tile_arr,tile_case,button_freeze_timer):
     screen.fill(map_color)
     screen.blit(select_img('help.png'),(0,639))
-    pygame.display.flip()
     changer_text_map = text_to_map(read_text_file(map_to_change))
     red_surf = draw_map(True,'none_map.png','cache/map_redacted.txt')
     if tile_case == 0:
@@ -637,13 +628,22 @@ def redactor(power,map_to_change,tile_arr,tile_case,button_freeze_timer):
                 changer_text_map[red_cursor.y//power][red_cursor.x//power] = point
                 red_surf.blit(analog,red_cursor)
             if check_button(pygame.K_ESCAPE):
-                write_text_file(map_to_change,changer_text_map)
+                write_text_file(map_to_change,changer_text_map,False)
                 run_redactor = False
         screen.blit(red_surf,(0,0))
         screen.blit(analog,red_cursor)
         pygame.draw.rect(screen,RPURPLE,red_cursor,3)
         pygame.display.flip()
     del red_surf
+
+
+
+loc_str = str()
+stat_list = {}
+index = str()
+value = str()
+val_flag = False
+
 
 #просто цвета
 BLACK = (0, 0, 0)
@@ -652,7 +652,6 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 RPURPLE = (185,0,105)
-
 
 map_color = (63,72,204)
 map_border = pygame.math.Vector2(4000,2000)
@@ -670,12 +669,12 @@ pygame.display.set_icon(icon) # иконка дерева - если вы пом
 clock = pygame.time.Clock()
 
 
-#  главные параметры "настройки" - от них зависит сложность
+# главные параметры "настройки" - от них зависит сложность
 
 player_SPEED = 7
 player_Dash_co = 3
 player_Hp = 40
-player_dmg = 10
+player_dmg = 15
 
 player_hit_range = 64
 player_hit_rad = 128
@@ -717,15 +716,33 @@ while run_all == True :
         map_border.x=2000
     clock.tick(10)
     screen.fill(map_color)
-    # отвечает за индексацию(отслеживание выбора)
-    text_index = 0
-    #отвечает за тип селектора
-    text_select = 0
-    #отвечает за количество отображаемого текста селектора
-    text_index_lim = 2
-    button_freeze_timer = 0
 
+
+
+    button_freeze_timer = 0
+    menu_pos = pygame.math.Vector2(0,0)
+    text_arr = [['Play','Score','Quit'],
+                ['Play story','Map editor','Back'],
+                ['Play on created map','Map redactor','Object redactor','Back']]
+    frontir = select_front(60)
     while run_menu:
+        # обновление статики
+        stati = read_text_file('cache/Statistic.txt')
+        stati_arr = ['Try: Score:']
+        loc_str = str()
+        point = 1
+        # создание текстовоо массива для вывода в меню
+        for i in range(0,len(stati)):
+            if stati[i] =='\n':
+                stati_arr.append( str(point) + ') ' + loc_str)
+                loc_str = str()
+                point+=1
+            elif stati[i] ==' ':
+                loc_str+= ':  '
+            else:
+                loc_str+= stati[i]
+
+        text_index_lim = len(text_arr[int(menu_pos.x)])
         timer = pygame.time.get_ticks()
         clock.tick(60)
         for event in pygame.event.get():
@@ -735,71 +752,80 @@ while run_all == True :
                 run_all = False
         screen.blit(select_img('menu.png'),(0,0))
         screen.blit(frontir.render('V 0.15',True,GREEN),(1100,740))
-        # нашъ прекрасный шрифт размера 60)
-        frontir = select_front(60)
+        #кнопки
         if button_freeze_timer + 100<=timer:
             button_freeze_timer = timer
+
             if  (check_button(pygame.K_s) or check_button(pygame.K_DOWN)):
-                if text_index == text_index_lim:
-                    text_index = 0
+                if menu_pos.y == text_index_lim - 1:
+                    menu_pos.y = 0
                 else:
-                    text_index+=1
-            if (check_button(pygame.K_w) or check_button(pygame.K_UP)):
-                button_freeze_timer = timer
-                if text_index == 0:
-                    text_index = text_index_lim
+                    menu_pos.y+=1
+            elif (check_button(pygame.K_w) or check_button(pygame.K_UP)):
+                if menu_pos.y == 0:
+                    menu_pos.y = text_index_lim - 1
                 else:
-                    text_index-=1
-            # я зуб даю перепишу этот ужас ибо мне стыдно смотреть на подобную реализацию, но пока так, живите с этим(
-            if check_button(pygame.K_KP_ENTER) or check_button(pygame.K_RETURN):
-                if text_index==0:
-                    if text_select==0:
-                        text_select = 1
-                    elif text_select==1:
-                        run_menu=False
+                    menu_pos.y-=1
+
+            elif check_button(pygame.K_KP_ENTER) or check_button(pygame.K_RETURN):
+                # смотрим какой из селекторов сейчас используется
+                if menu_pos.x == 0:
+                    # Play
+                    if menu_pos.y == 0:
+                        menu_pos.x+=1
+                    # Settings
+                    #if menu_pos.y == 1:
+                    # Score
+                    if menu_pos.y == 1:
+
+                        screen.blit(select_img('menu.png'),(0,0))
+                        for i in range(0,len(stati_arr)):
+                            if i <= 6:
+                                screen.blit(frontir.render(stati_arr[i],True,(0 + i*20,0,255 - i*20)),(90,110 + i*100))
+                            elif i > 6 and i <= 10:
+                                screen.blit(frontir.render(stati_arr[i],True,(50 + i*20,0,255 - i*20)),(490,i*110 - 400))
+                            elif i > 10 and i < 16:
+                                screen.blit(frontir.render(stati_arr[i],True,(0,0,200)),(890,i*110 - 920))
+                        pygame.display.flip()
+                        time.sleep(5)
+                    # Quit
+                    if menu_pos.y == 2:
+                        run_menu = False
+                        run_game = False
+                        run_all = False
+                elif menu_pos.x == 1:
+                    # Play story
+                    if menu_pos.y == 0:
+                        run_menu = False
                         run_game = True
-                    # запуск игры на изменённой карте
-                    elif text_select==2:
+                    # Map editor
+                    elif menu_pos.y == 1:
+                        menu_pos.x+=1
+                    # Back
+                    elif menu_pos.y == 2:
+                        menu_pos.x-=1
+                elif menu_pos.x == 2:
+                    # Play on created map
+                    if menu_pos.y == 0:
                         map_file = 'cache/map_redacted.txt'
                         obj_file = 'cache/object_redacted.txt'
                         run_menu=False
                         run_game = True
-                if text_index == 1:
-                    # настройки
-                    #if text_select = 0:
-                    # переход к меню редактора
-                    if text_select == 1:
-                        text_index_lim+=1
-                        text_select+=1
-                    # реальный выход к реальному редактору !
-                    elif text_select == 2:
+                    # Map redactor
+                    elif menu_pos.y == 1:
                         redactor(64,'cache/map_redacted.txt',tail_map,1,button_freeze_timer)
-
-                if text_index == 2:
-                    if text_select == 0:
-                        run_menu = False
-                        run_game = False
-                        run_all = False
-                    elif text_select == 1:
-                        text_select=0
-                    #переход к редактору ОБЪЕДКОВ
-                    elif text_select == 2:
+                    # Object redactor
+                    elif menu_pos.y == 2:
                         redactor(32,'cache/object_redacted.txt',Obj_img,0,button_freeze_timer)
-                # третй пункт достигается только в настройках редактора
-                if text_index == 3:
-                    text_select=1
-                    text_index-=1
-                    text_index_lim-=1
+                    # Back
+                    elif menu_pos.y == 3:
+                        menu_pos.x-=1
+                        menu_pos.y = 0
 
-        #отрисовка нашей менюшки)
-        text_arr = ['Play','Settings(in progress)','Quit',
-                    'Play story','Map editor','Back',
-                    'Play on created map','Map redactor','Object redactor','Back'] # нормально
-
-        for i in range(0,text_index_lim+1):
-            screen.blit(frontir.render(text_arr[i+3*text_select],True,BLUE),(70,250+i*100))
-        screen.blit(frontir.render(text_arr[text_index+3*text_select],True,RPURPLE),(73,253+text_index*100))
-        pygame.display.flip()
+            for i in range(0,len(text_arr[int(menu_pos.x)])):
+                screen.blit(frontir.render(text_arr[int(menu_pos.x)][i],True,BLUE),(70,250+i*100))
+            screen.blit(frontir.render(text_arr[int(menu_pos.x)][int(menu_pos.y)],True,RPURPLE),(73,253+int(menu_pos.y)*100))
+            pygame.display.flip()
     if run_game:
         if not next_map_flag:
             player_Hp = 40
@@ -868,8 +894,6 @@ while run_all == True :
                     static_sprites.add(some_rod)
                     rod_is_real = True
                     rod_counter+=1
-
-
         all_sprites.add(player_1,enemy_sprites,static_sprites) # добавляем объекты в группы
         camera_group.add(all_sprites)
 
@@ -939,6 +963,31 @@ while run_all == True :
                 run_menu = True
                 next_map_flag = False
                 Dung.Gate_is_open = False
+
+                stat_list = {}
+                stati = read_text_file('cache/Statistic.txt')
+                if stati[0] !='0':
+                    #вывод чисел в хэш
+                    for i in range(0,len(stati)):
+                        if stati[i] =='\n':
+                            val_flag = False
+                            #print(index,'\t',value)
+                            stat_list[index] = int(value)
+                            loc_str = str()
+                            value = str()
+                        elif stati[i] ==' ':
+                            val_flag = True
+                            index = loc_str
+                        else:
+                            loc_str+= stati[i]
+                            if val_flag:
+                                value+= stati[i]
+                else:
+                    point=1
+                stat_list[point] = player_counter_kill
+                stat_list = sorted(stat_list.items(), key=lambda n: n[1], reverse=True)
+                # запись
+                write_text_file('cache/Statistic.txt',stat_list,True)
 
         if Dung_ex:
             if Dung.Gate_is_open:
