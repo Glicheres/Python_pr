@@ -12,6 +12,7 @@ Chanel_1 = pygame.mixer.Channel(0)
 
 front_floder = os.path.join(game_folder,'front')
 pygame.font.init() # инициаллизация шрифтов
+
 #удобные, помогающие функции
 # выбрать фото по имени
 def select_img(x):
@@ -27,7 +28,7 @@ def check_button(x):
 #создание Хэш - таблицы
 def create_hash(name,png):
     Hash = {}
-    for i in range(len(png)):
+    for i in range(0,len(png)):
         Hash[name[i]] = png[i]
     return Hash
 
@@ -41,6 +42,7 @@ def read_text_file(name):
     return m
 def write_text_file(name, Arr,type):
     s = str()
+
     for i in range(len(Arr)):
         for j in range(len(Arr[i])):
             s+=str(Arr[i][j])
@@ -114,8 +116,6 @@ def draw_map(redactor,map_file,text_file):
                     analog = pygame.transform.scale(change_camera_group.ground_surf,(1280,640))
                     screen.blit(analog,(0,0))
                     pygame.display.flip()
-                #screen.blit(change_camera_group.ground_surf,(0,0))
-                #pygame.display.flip()
                 del tail1
     if redactor:
         result = analog
@@ -183,9 +183,6 @@ class Obj(pygame.sprite.Sprite):
         # rect - такого же размера, что и спрайт
         self.rect = self.image.get_rect(center = pos)
         # рамка выделяющая спрайт
-    def paint_border(self):
-        self.border = (0, 0, self.rect.width, self.rect.height)
-        pygame.draw.rect(self.image, self.border_color, self.border, 3)
     def get_cord(self):
         return [self.rect.x + 32,self.rect.y+32]
 class Static_obj(Obj):
@@ -205,7 +202,6 @@ class Xp(Static_obj):
     def __init__(self,pos):
         super().__init__(pos,type ='xp')
     def update(self):
-        self.paint_border()
         if intersection(player_1.rect,self.rect):
             player_1.counter_xp+=1
             player_1.hp+=2
@@ -214,7 +210,6 @@ class Key(Static_obj):
     def __init__(self,pos):
         super().__init__(pos,type ='key')
     def update(self):
-        self.paint_border()
         if intersection(player_1.rect,self.rect):
             player_1.counter_key+=1
             self.kill()
@@ -227,11 +222,8 @@ class Tree(Static_obj):
         self.solid_x = self.rect.x+120
         self.solid_y = self.rect.y+265
         self.solid = pygame.rect.Rect(self.solid_x, self.solid_y, 30, 120)
-        self.solid_border = (120,265,30,120)
 
     def update(self):
-        self.paint_border()
-        pygame.draw.rect(self.image,RPURPLE,self.solid_border,3)
         if intersection(player_1.rect,self.solid):
             where_x = sign(self.solid.centerx - player_1.rect.centerx)
             where_y = sign(self.solid.centery - player_1.rect.centery)
@@ -296,10 +288,8 @@ class Dungeon(Tree):
         self.solid_x = self.rect.x + 128
         self.solid_y = self.rect.y + 120
         self.solid = pygame.rect.Rect(self.solid_x, self.solid_y, 128, 136)
-        self.solid_border = (128,120,128,136)
         self.Gate_is_open = False
         self.solid_1 = pygame.rect.Rect(self.solid_x, self.solid_y, 128, 100)
-        self.solid_border_1 = (128,120,128,100)
 
         # доп грани
         #self.solid_1 = pygame.rect.Rect(self.solid_x-128, self.solid_y, 128, 136)
@@ -324,7 +314,6 @@ class Dungeon(Tree):
         if (self.Gate_is_open == False) and (player_1.counter_key >= 2):
             # пересечение - переход
             self.image = dung_img_map['open']
-            self.solid_border = (128,120,128,68)
             self.solid = pygame.rect.Rect(self.solid_x, self.solid_y, 128, 68)
             self.Gate_is_open = True
 #enemy spawner
@@ -334,7 +323,6 @@ class En_sp(Tree):
         self.solid_x = self.rect.x
         self.solid_y = self.rect.y + 50
         self.solid = pygame.rect.Rect(self.solid_x, self.solid_y, 200, 90)
-        self.solid_border = (0,50,200,90)
     def update(self):
         super().update()
 
@@ -423,7 +411,6 @@ class Player(Obj):
         else:
             self.hit_s = pygame.rect.Rect(0,0,0,0)
 
-        self.paint_border()
 
     def hit(self):
         self.hit_time = pygame.time.get_ticks()
@@ -446,7 +433,6 @@ class Player(Obj):
 
         self.image = player_img_map[self.side]
         hit_rect = pygame.rect.Rect(hit_x, hit_y,hit_w,hit_h)
-        self.paint_border()
         return hit_rect
 class Enemy(NPC):
     def __init__(self,pos,hp,dmg):
@@ -467,7 +453,6 @@ class Enemy(NPC):
                 self.catch_timer = pygame.time.get_ticks()
                 self.image = enemy_img_map['alert']
                 self.catch = True
-                #Chanel_1.play(alert_sound)
             if pygame.time.get_ticks() > self.catch_timer + 300 and self.DDTP >= enemy_attack_range:
                 self.image = enemy_img_map['angry']
                 self.move_to_player(enemy_speed)
@@ -487,7 +472,6 @@ class Enemy(NPC):
                 self.pmv_timer = pygame.time.get_ticks()
             self.rect.centerx+=enemy_speed/2 * self.pmv_x
             self.rect.centery+=enemy_speed/2 * self.pmv_y
-        self.paint_border()
 class Midge(NPC):
     def __init__(self,pos,hp,dmg):
         super().__init__(pos,hp,dmg,img = egg_img_map['egg_n'])
@@ -528,8 +512,6 @@ class Boss(NPC):
             player_1.dmg = 10
         if self.stan:
             player_1.dmg = 100
-        self.paint_border()
-        pygame.draw.circle(self.image, BLACK,(256,256), 220,5)
         if self.DDTP < 220:
             player_1.hp = 0
         if self.stan and self.stan_timer + self.stan_timer_dist <= pygame.time.get_ticks():
@@ -644,7 +626,6 @@ index = str()
 value = str()
 val_flag = False
 
-
 #просто цвета
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -661,11 +642,11 @@ WIDTH = 1280  # ширина игрового окна
 HEIGHT = 800 # высота игрового окна
 FPS = 60 # частота кадров в секунду
 
-pygame.init() #инициаллизация всех игровых объедков
+pygame.init() #инициаллизация всех игровых объектов
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT)) # создаём экран)
+screen = pygame.display.set_mode((WIDTH, HEIGHT)) # создаём экран
 pygame.display.set_caption("CoboLt, 0.15") # экран
-pygame.display.set_icon(icon) # иконка дерева - если вы помните (icon) была объявлена еще до структур
+pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
 
 
@@ -717,8 +698,6 @@ while run_all == True :
     clock.tick(10)
     screen.fill(map_color)
 
-
-
     button_freeze_timer = 0
     menu_pos = pygame.math.Vector2(0,0)
     text_arr = [['Play','Score','Quit'],
@@ -726,12 +705,12 @@ while run_all == True :
                 ['Play on created map','Map redactor','Object redactor','Back']]
     frontir = select_front(60)
     while run_menu:
-        # обновление статики
+        # обновление статистики
         stati = read_text_file('cache/Statistic.txt')
         stati_arr = ['Try: Score:']
         loc_str = str()
         point = 1
-        # создание текстовоо массива для вывода в меню
+        # создание текстового массива для вывода в меню
         for i in range(0,len(stati)):
             if stati[i] =='\n':
                 stati_arr.append( str(point) + ') ' + loc_str)
@@ -829,7 +808,6 @@ while run_all == True :
     if run_game:
         if not next_map_flag:
             player_Hp = 40
-        #exist
         Dung_ex = False
         Spawner_ex = False
         # обнуляем группы спрайтов
@@ -839,12 +817,10 @@ while run_all == True :
         rod_gr = Rod_group()
         # создаём карточку
         text_map_obj = text_to_map(read_text_file(obj_file))
-        #map_obj_grid_count
         power = 100
         map_ogc = pygame.math.Vector2(int(map_border.x) // power,int(map_border.y) // power)
         grid_obj = create_grid(map_ogc,power)
         pygame.image.save(draw_map(False,'none_map.png',map_file),'img/screen.png')
-        #это точно надо изменить, но пока не придумал другой реализации
         camera_group = CameraGroup('screen.png')
         #анализ и создание объектов
         spawner_cord_arr = []
@@ -852,7 +828,6 @@ while run_all == True :
         rod_is_real = False
         for i in range(0,int(map_ogc.y)):
             for j in range(0,int(map_ogc.x)):
-                pygame.draw.rect(camera_group.ground_surf,WHITE,grid_obj[i][j],1)
                 if text_map_obj[i][j] == 'P':
                     player_1 = Player(grid_obj[i][j].center) # создаём спрайт класса "игрок"
                     for p in range(0,player_Hp//10):
@@ -904,14 +879,7 @@ while run_all == True :
         screen.fill(map_color)
     while run_game:
         clock.tick(FPS)
-        #print(pygame.time.get_ticks())
         timer = pygame.time.get_ticks()
-        #print(clock)
-        #print('a = ',player_1.counter_apple, '\tk = ',player_1.counter_kill,'\txp = ',player_1.counter_xp)
-        #print(player_1.get_cord())
-        #print(len(all_sprites))
-
-        # Ввод процесса (события)
 
         # Обновление всех спрайтов
         # не забываем что внути update прописаны event для управления
@@ -971,7 +939,6 @@ while run_all == True :
                     for i in range(0,len(stati)):
                         if stati[i] =='\n':
                             val_flag = False
-                            #print(index,'\t',value)
                             stat_list[index] = int(value)
                             loc_str = str()
                             value = str()
@@ -991,7 +958,6 @@ while run_all == True :
 
         if Dung_ex:
             if Dung.Gate_is_open:
-                pygame.draw.rect(Dung.image,GREEN,Dung.solid_border_1,4)
                 if intersection(Dung.solid_1,player_1.rect):
                     run_game = False
                     run_menu = False
@@ -1014,7 +980,4 @@ while run_all == True :
         all_sprites.update()
         # Визуализация (сборка)
         camera_group.custom_draw(player_1)
-        #pygame.draw.rect(camera_group.ground_surf,RED,player_1.hit_s,4)
         pygame.display.flip() # отрисовка
-    #pygame.image.save(screen,'cache/screen.png')
-    #pygame.image.save(camera_group.ground_surf,'cache/camera.png')
